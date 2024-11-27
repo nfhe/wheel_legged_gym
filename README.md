@@ -20,7 +20,7 @@
 #### train
 
 ```
-python wheeled_bipedal_gym/scripts/train.py --task=diablo
+python wheeled_bipedal_gym/scripts/train.py --task=balio
 ```
 
 It takes about three thousand iterations to reach convergence.
@@ -28,6 +28,6 @@ It takes about three thousand iterations to reach convergence.
 #### play
 
 ```
-python wheeled_bipedal_gym/scripts/play.py --task=diablo
+python wheeled_bipedal_gym/scripts/play.py --task=balio
 ```
 
