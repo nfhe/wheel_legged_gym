@@ -148,19 +148,40 @@ class WheeledBipedal(BaseTask):
         self.last_dof_pos[:] = self.dof_pos[:]
 
     def leg_post_physics_step(self):
-        # change from original for the joint tf is different！
+        # self.theta1 = torch.cat(
+        #     (self.dof_pos[:, 0].unsqueeze(1) + self.pi - 0.13433,
+        #      self.dof_pos[:, 3].unsqueeze(1) + self.pi - 0.13433),
+        #     dim=1)
+        # self.theta2 = torch.cat(
+        #     (
+        #         (self.dof_pos[:, 1] - self.pi + 0.26866).unsqueeze(1),
+        #         (self.dof_pos[:, 4] - self.pi + 0.26866).unsqueeze(1),
+        #     ),
+        #     dim=1,
+        # )
+        # self.theta1 = torch.cat(
+        #     (self.dof_pos[:, 0].unsqueeze(1) + self.pi - 0.02616,
+        #     self.dof_pos[:, 3].unsqueeze(1) + self.pi - 0.02616),
+        #     dim=1)
+        # self.theta2 = torch.cat(
+        #     (
+        #         (self.dof_pos[:, 1] - self.pi + 0.935).unsqueeze(1),
+        #         (self.dof_pos[:, 4] - self.pi + 0.935).unsqueeze(1),
+        #     ),
+        #     dim=1,
+        # )
         self.theta1 = torch.cat(
-            (self.dof_pos[:, 0].unsqueeze(1) + self.pi - 0.13433,
-             self.dof_pos[:, 3].unsqueeze(1) + self.pi - 0.13433),
+            (self.dof_pos[:, 0].unsqueeze(1) + self.pi - 0.2616,
+            self.dof_pos[:, 3].unsqueeze(1) + self.pi - 0.2616),
             dim=1)
         self.theta2 = torch.cat(
             (
-                (self.dof_pos[:, 1] - self.pi - 0.26866).unsqueeze(1),
-                (self.dof_pos[:, 4] - self.pi - 0.26866).unsqueeze(1),
+                (self.dof_pos[:, 1] - self.pi + 0.8896).unsqueeze(1),
+                (self.dof_pos[:, 4] - self.pi + 0.8896).unsqueeze(1),
             ),
             dim=1,
         )
-
+        # print("self.dof_pos:",self.dof_pos)
         self.L0, self.theta0 = self.forward_kinematics()
         self.L0_dot, self.theta0_dot = self.calculate_vmc_vel()
 
@@ -208,8 +229,11 @@ class WheeledBipedal(BaseTask):
             self._draw_debug_vis()
 
     def forward_kinematics(self):
-        end_x = (self.cfg.asset.offset +
-                 self.cfg.asset.l1 * torch.cos(self.theta1) +
+
+        # x = - self.cfg.asset.offset + self.cfg.asset.l1*torch.cos(torch.tensor(3.024)) + self.cfg.asset.l2*torch.cos(torch.tensor(3.024 - 2.272))
+        # y = self.cfg.asset.l1*torch.sin(torch.tensor(3.024)) + self.cfg.asset.l2*torch.sin(torch.tensor(3.024 - 2.272))
+
+        end_x = (- self.cfg.asset.offset + self.cfg.asset.l1 * torch.cos(self.theta1) +
                  self.cfg.asset.l2 * torch.cos(self.theta1 + self.theta2))
         end_y = self.cfg.asset.l1 * torch.sin(
             self.theta1) + self.cfg.asset.l2 * torch.sin(self.theta1 + self.theta2)
@@ -229,6 +253,7 @@ class WheeledBipedal(BaseTask):
         dx_dphi2 = -l2 * torch.sin(theta1 + theta2)
         dy_dphi1 = l1 * torch.cos(theta1) + l2 * torch.cos(theta1 + theta2)
         dy_dphi2 = l2 * torch.cos(theta1 + theta2)
+
         dr_dphi1 = (dx_dphi1 * x + dy_dphi1 * y) / self.L0
         dr_dphi2 = (dx_dphi2 * x + dy_dphi2 * y) / self.L0
         dtheta_dphi1 = (dy_dphi1 * x - dx_dphi1 * y) / (torch.square(self.L0))
@@ -246,9 +271,10 @@ class WheeledBipedal(BaseTask):
         fail_buf = torch.any(
             torch.norm(
                 self.contact_forces[:, self.termination_contact_indices, :],
-                dim=-1) > 1.0,
+                dim=-1) > 1,
             dim=1,
         )
+
         fail_buf |= self.projected_gravity[:, 2] > -0.8
         self.fail_buf *= fail_buf
         self.fail_buf += fail_buf
@@ -265,7 +291,7 @@ class WheeledBipedal(BaseTask):
             self.edge_reset_buf |= self.base_position[:,
                                                       1] < self.terrain_y_min + 1
         self.reset_buf = ((self.fail_buf
-                           > self.cfg.env.fail_to_terminal_time_s / self.dt)
+                           > self.cfg.env.fail_to_terminal_time_s / self.dt )
                           | self.time_out_buf
                           | self.edge_reset_buf)
         # fail_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
@@ -634,30 +660,17 @@ class WheeledBipedal(BaseTask):
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
         """
-        self.commands[
-            env_ids,
-            0] = (self.command_ranges["lin_vel_x"][env_ids, 1] -
-                  self.command_ranges["lin_vel_x"][env_ids, 0]) * torch.rand(
-                      len(env_ids), device=self.device
-                  ) + self.command_ranges["lin_vel_x"][env_ids, 0]
-        self.commands[
-            env_ids,
-            1] = (self.command_ranges["ang_vel_yaw"][env_ids, 1] -
-                  self.command_ranges["ang_vel_yaw"][env_ids, 0]) * torch.rand(
-                      len(env_ids), device=self.device
-                  ) + self.command_ranges["ang_vel_yaw"][env_ids, 0]
-        self.commands[env_ids, 2] = (
-            self.command_ranges["height"][env_ids, 1] -
-            self.command_ranges["height"][env_ids, 0]) * torch.rand(
-                len(env_ids),
-                device=self.device) + self.command_ranges["height"][env_ids, 0]
+
+        self.commands[env_ids, 0] = (self.command_ranges["lin_vel_x"][env_ids, 1] - self.command_ranges["lin_vel_x"][env_ids, 0]) * torch.rand(len(env_ids), device=self.device) + self.command_ranges["lin_vel_x"][env_ids, 0]
+        self.commands[env_ids, 1] = (self.command_ranges["ang_vel_yaw"][env_ids, 1] -self.command_ranges["ang_vel_yaw"][env_ids, 0]) * torch.rand(len(env_ids), device=self.device) + self.command_ranges["ang_vel_yaw"][env_ids, 0]
+        self.commands[env_ids, 2] = (self.command_ranges["height"][env_ids, 1] -self.command_ranges["height"][env_ids, 0]) * torch.rand(len(env_ids),device=self.device) + self.command_ranges["height"][env_ids, 0]
         if self.cfg.commands.heading_command:
-            self.commands[env_ids, 3] = torch_rand_float(
-                self.command_ranges["heading"][0],
-                self.command_ranges["heading"][1],
-                (len(env_ids), 1),
-                device=self.device,
-            ).squeeze(1)
+            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0],self.command_ranges["heading"][1],(len(env_ids), 1),device=self.device).squeeze(1)
+        # set small commands to zero
+        self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :1], dim=1) > 0.2).unsqueeze(1)
+
+
+
 
     def _compute_torques(self, actions):
         """Compute torques from actions.
@@ -704,6 +717,7 @@ class WheeledBipedal(BaseTask):
         dx_dphi2 = -l2 * torch.sin(theta1 + theta2)
         dy_dphi1 = l1 * torch.cos(theta1) + l2 * torch.cos(theta1 + theta2)
         dy_dphi2 = l2 * torch.cos(theta1 + theta2)
+
         dr_dphi1 = (dx_dphi1 * x + dy_dphi1 * y) / self.L0
         dr_dphi2 = (dx_dphi2 * x + dy_dphi2 * y) / self.L0
         dtheta_dphi1 = (dy_dphi1 * x - dx_dphi1 * y) / (torch.square(self.L0))
@@ -1652,7 +1666,7 @@ class WheeledBipedal(BaseTask):
         return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
 
     def _reward_base_height(self):
-        # Penalize base height away from target
+        # 4.Penalize base height away from target
         # print(self.commands[0, 2], self.base_height[0])
         if self.reward_scales["base_height"] < 0:
             return torch.abs(self.base_height - self.commands[:, 2])
@@ -1748,20 +1762,20 @@ class WheeledBipedal(BaseTask):
         )
 
     def _reward_tracking_lin_vel(self):
-        # Tracking of linear velocity commands (x axes)
+        # 1.Tracking of linear velocity commands (x axes)
         lin_vel_error = torch.square(self.commands[:, 0] -
                                      self.base_lin_vel[:, 0])
         return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
 
     def _reward_tracking_lin_vel_enhance(self):
-        # Tracking of linear velocity commands (x axes)
+        # 2.Tracking of linear velocity commands (x axes)
         lin_vel_error = torch.square(self.commands[:, 0] -
                                      self.base_lin_vel[:, 0])
         return torch.exp(
             -lin_vel_error / self.cfg.rewards.tracking_sigma / 10) - 1
 
     def _reward_tracking_ang_vel(self):
-        # Tracking of angular velocity commands (yaw)
+        # 3.Tracking of angular velocity commands (yaw)
         ang_vel_error = torch.square(self.commands[:, 1] -
                                      self.base_ang_vel[:, 2])
         return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma)
@@ -1800,7 +1814,7 @@ class WheeledBipedal(BaseTask):
                                    < 0.1)
 
     def _reward_nominal_state(self):
-        # return torch.square(self.theta0[:, 0] - self.theta0[:, 1])
+        # 5.return torch.square(self.theta0[:, 0] - self.theta0[:, 1])
         if self.reward_scales["nominal_state"] < 0:
             return torch.square(self.theta0[:, 0] - self.theta0[:, 1])
         else:
@@ -1817,22 +1831,26 @@ class WheeledBipedal(BaseTask):
 
     def _reward_theta_limit(self):
         # Penalize theta is too huge
-        base_pitch = self.projected_gravity[:, 1]
-        base_pitch = base_pitch.unsqueeze(1)
-        return torch.sum(torch.square(self.theta0[:, :2] + base_pitch), dim=1)
+        return torch.sum(torch.square(self.theta0[:, :2]), dim=1)
+
+    # def _reward_theta_limit(self):
+    #     # Penalize theta is too huge
+    #     base_pitch = self.projected_gravity[:, 1]
+    #     base_pitch = base_pitch.unsqueeze(1)
+    #     return torch.sum(torch.square(self.theta0[:, :2] + base_pitch), dim=1)
 
     def _reward_same_l(self):
         # Penalize l is too dif
         return torch.square(self.L0[:, 0] - self.L0[:, 1])
 
-    def _reward_wheel_vel(self):
-        # Penalize dof velocities
-        # left_wheel_vel = self.commands[:,0]/2 - self.commands[:,1]
-        # right_wheel_vel = self.commands[:,0]/2 + self.commands[:,1]
-        # return torch.sum(torch.square(self.dof_vel[:, 2] - left_wheel_vel) + torch.square(self.dof_vel[:, 5]) - right_wheel_vel)
-        return torch.sum(
-            torch.square(self.dof_vel[:, 2]) +
-            torch.square(self.dof_vel[:, 5]))
+    # def _reward_wheel_vel(self):
+    #     # Penalize dof velocities
+    #     # left_wheel_vel = self.commands[:,0]/2 - self.commands[:,1]
+    #     # right_wheel_vel = self.commands[:,0]/2 + self.commands[:,1]
+    #     # return torch.sum(torch.square(self.dof_vel[:, 2] - left_wheel_vel) + torch.square(self.dof_vel[:, 5]) - right_wheel_vel)
+    #     return torch.sum(
+    #         torch.square(self.dof_vel[:, 2]) +
+    #         torch.square(self.dof_vel[:, 5]))
 
     def _reward_block_l(self):
         vel_x_des = self.commands[:, 0]

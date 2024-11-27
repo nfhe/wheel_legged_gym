@@ -109,13 +109,13 @@ def play(args):
         else:
             actions = policy(obs.detach())
 
-        env.commands[:, 0] = 2.5
-        env.commands[:, 2] = 0.18  # + 0.07 * np.sin(i * 0.01)
+        env.commands[:, 0] = 2.0
+        env.commands[:, 2] = 0.17  # + 0.07 * np.sin(i * 0.01)
         env.commands[:, 3] = 0
 
         if CoM_offset_compensate:
             if i > 200 and i < 600:
-                vel_cmd[:] = 2.5 * np.clip((i - 200) * 0.05, 0, 1)
+                vel_cmd[:] = 2.0 * np.clip((i - 200) * 0.05, 0, 1)
             else:
                 vel_cmd[:] = 0
             vel_err_intergral += (
@@ -228,4 +228,5 @@ if __name__ == "__main__":
     RECORD_FRAMES = False
     MOVE_CAMERA = True
     args = get_args()
+    args.task = "balio_vmc"
     play(args)
