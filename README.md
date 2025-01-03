@@ -20,7 +20,7 @@
 #### train
 
 ```
-python wheeled_bipedal_gym/scripts/train.py --task=diablo
+python wheeled_bipedal_gym/scripts/train.py --task=balio
 ```
 
 It takes about three thousand iterations to reach convergence.
