@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,13 +26,14 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 import numpy as np
 
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
+import os
 
 
 class ActorCritic(nn.Module):
@@ -156,6 +157,45 @@ class ActorCritic(nn.Module):
         value = self.critic(critic_observations)
         return value
 
+    def save_torch_onnx_policy(self, path, device):
+        """
+        Saves the actor network as an ONNX file.
+
+        Args:
+            path (str): The directory path where the ONNX model will be saved.
+            device (torch.device, optional): The device to use for export. Defaults to None.
+        """
+        # self.actor.half()
+        # self.actor.eval()
+        obs_demo_input = torch.randn(1, 27).to(device)
+        # 生成具体文件路径
+        file_path = os.path.join(path, "actor_model.onnx")
+        try:
+            # torch.onnx.export(self.actor, obs_demo_input, file_path, verbose=False, input_names=["obs"], output_names=["act"])
+            torch.onnx.export(self.actor, obs_demo_input, file_path,
+                  verbose=False, input_names=["obs"], output_names=["act"], opset_version=13, keep_initializers_as_inputs=True)
+            print(f"ONNX policy saved at: {file_path}")
+        except Exception as e:
+            print(f"Failed to export ONNX model: {e}")
+
+    def save_torch_jit_policy(self, path, device):
+        """
+        Saves the actor network as a TorchScript file.
+
+        Args:
+            path (str): The directory path where the TorchScript model will be saved.
+            device (torch.device, optional): The device to use for export. Defaults to None.
+        """
+        # self.actor.eval()
+        obs_demo_input = torch.randn(1, 27).to(device)
+        # 生成具体文件路径
+        file_path = os.path.join(path, "actor_model.pt")
+        try:
+            model_jit = torch.jit.trace(self.actor.to(device), obs_demo_input)
+            model_jit.save(file_path)
+            print(f"JIT policy saved at: {file_path}")
+        except Exception as e:
+            print(f"Failed to export JIT model: {e}")
 
 def get_activation(act_name):
     if act_name == "elu":

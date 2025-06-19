@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 from wheeled_bipedal_gym.envs.diablo.diablo_config import (
     DiabloCfg,
@@ -102,7 +102,7 @@ class DiabloVMCCfg(DiabloCfg):
             action_smooth = -0.01
 
             collision = -1.0
-            dof_pos_limits = -1
+            dof_pos_limits = -0.01
 
             theta_limit = -0.1e-5
             same_l = -0.1e-8

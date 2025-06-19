@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 import os
 import copy
@@ -240,7 +240,6 @@ def get_args():
         args.sim_device += f":{args.sim_device_id}"
     return args
 
-
 def export_policy_as_jit(actor_critic, path):
     if hasattr(actor_critic, "memory_a"):
         # assumes LSTM: TODO add GRU
@@ -252,7 +251,6 @@ def export_policy_as_jit(actor_critic, path):
         model = copy.deepcopy(actor_critic.actor).to("cpu")
         traced_script_module = torch.jit.script(model)
         traced_script_module.save(path)
-
 
 class PolicyExporterLSTM(torch.nn.Module):
     def __init__(self, actor_critic):

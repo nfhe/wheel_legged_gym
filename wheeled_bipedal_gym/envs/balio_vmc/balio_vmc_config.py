@@ -1,0 +1,194 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 2024 nfhe
+
+from wheeled_bipedal_gym.envs.balio.balio_config import (BalioCfg, BalioCfgPPO)
+
+class BalioVMCCfg(BalioCfg):
+    class env(BalioCfg.env):
+        num_privileged_obs = (BalioCfg.env.num_observations + 7 * 11 + 3 + 6 * 7 + 3 + 3)
+        fail_to_terminal_time_s = 1
+        episode_length_s = 20
+
+    class terrain(BalioCfg.terrain):
+        mesh_type = "plane"
+        # mesh_type = "trimesh"
+        # mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
+        horizontal_scale = 0.1  # [m]
+        vertical_scale = 0.005  # [m]
+        border_size = 25  # [m]
+        curriculum = True
+        static_friction = 1
+        dynamic_friction = 0.
+        restitution = 0.5
+        # rough terrain only:
+        measure_heights = True
+        measured_points_x = [-0.5, -0.4,-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5] # 0.6mx1.0m rectangle (without center line)
+        measured_points_y = [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]
+        selected = True  # select a unique terrain type and pass all arguments
+        terrain_kwargs = None  # Dict of arguments for selected terrain
+        max_init_terrain_level = 0  # starting curriculum state
+        terrain_length = 8.0
+        terrain_width = 8.0
+        num_rows = 8  # number of terrain rows (levels)
+        num_cols = 8  # number of terrain cols (types)
+        # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
+        # terrain_proportions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+        # terrain_proportions = [0.2, 0.2, 0.2, 0.1, 0.2, 0.1]
+        terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+        # trimesh only:
+        slope_treshold = 0.75  # slopes above this threshold will be corrected to vertical surfaces
+
+    class rewards(BalioCfg.rewards):
+        class scales:
+            tracking_lin_vel = 1.0
+            tracking_lin_vel_enhance = 1
+            tracking_ang_vel = 1.0
+            # tracking_ang_vel_enhance = 1
+
+            base_height = 5 #20
+            nominal_state = -0.1
+            lin_vel_z = -0.1e-3  # -0.1e-3 #-2.0
+            ang_vel_xy = -0.05
+            orientation = -100.0
+
+            dof_vel = -5e-2
+            dof_acc = -2.5e-3
+            torques = -0.1e-5 #-0.01
+            action_rate = -0.01
+            action_smooth = -0.01
+
+            collision = -1.0
+            dof_pos_limits = -1
+
+            theta_limit = -0.1e-5 # -0.02
+            same_l = -0.1e-8 #-0.1e-8
+            same_theta = 0.01 #-0.1e-8
+            # wheel_vel = -0.1e-5
+
+        base_height_target = 0.14
+            # tracking_lin_vel = 1.0
+            # tracking_lin_vel_enhance = 1
+            # tracking_ang_vel = 1.0
+
+            # base_height = 5
+            # nominal_state = -0.1
+            # lin_vel_z = -0.1e-3
+            # ang_vel_xy = -0.05
+            # orientation = -100.0
+
+            # dof_vel = -5e-2
+            # dof_acc = -2.5e-3
+            # torques = -0.1e-5
+            # action_rate = -0.01
+            # action_smooth = -0.01
+
+            # collision = -1.0
+            # dof_pos_limits = -0.01
+
+            # theta_limit = -0.1e-5
+            # same_l = -0.1e-8
+            # # special for wheel
+            # wheel_vel = -0.1e-5
+
+    class control(BalioCfg.control):
+        action_scale_theta = 0.5
+        action_scale_l0 = 0.1
+        action_scale_vel = 10.0
+
+        l0_offset = 0.14
+        feedforward_force = 17.5  # 40[N]
+
+        # real max
+        # kp_theta = 5  # [N*m/rad]
+        # kd_theta = 0.5  # [N*m*s/rad]
+        # kp_l0 = 10  # [N/m]
+        # kd_l0 = 0.4  # [N*s/m]
+        kp_theta = 5  # [N*m/rad]
+        kd_theta = 0.5  # [N*m*s/rad]
+        kp_l0 = 150  # [N/m]
+        kd_l0 = 4  # [N*s/m]
+
+        # PD Drive parameters:
+        stiffness = {"f0": 0.0, "f1": 0.0, "wheel": 0.4}  # [N*m/rad]
+        damping = {"f0": 0.0, "f1": 0.0, "wheel": 0.4}  # [N*m*s/rad]
+
+    class normalization(BalioCfg.normalization):
+        class obs_scales(BalioCfg.normalization.obs_scales):
+            l0 = 5.0
+            l0_dot = 0.25
+            # wheel pos should be zero!
+            wheel_pos = 0.0
+            dof_pos = 1.0
+
+    class noise(BalioCfg.noise):
+        class noise_scales(BalioCfg.noise.noise_scales):
+            l0 = 0.02
+            l0_dot = 0.1
+
+    class commands(BalioCfg.commands):
+        class ranges:
+            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            ang_vel_yaw = [-3.14, 3.14]  # min max [rad/s]
+            height = [0.10, 0.20]
+            heading = [-3.14, 3.14]
+
+    class domain_rand(BalioCfg.domain_rand):
+        randomize_friction = True
+        friction_range = [0.1, 2.0]
+        randomize_restitution = True
+        restitution_range = [0.0, 1.0]
+        randomize_base_mass = True
+        added_mass_range = [-1.8, 1.8] # kg
+        randomize_inertia = True
+        randomize_inertia_range = [0.8, 1.2]
+        randomize_base_com = True
+        rand_com_vec = [0.05, 0.05, 0.05]
+        # rand_com_vec = [0.15, 0.15, 0.15]
+        push_robots = True
+        push_interval_s = 7
+        max_push_vel_xy = 2.0
+        randomize_Kp = True
+        randomize_Kp_range = [0.8, 1.2]
+        randomize_Kd = True
+        randomize_Kd_range = [0.8, 1.2]
+        randomize_motor_torque = True
+        randomize_motor_torque_range = [0.8, 1.2]
+        randomize_default_dof_pos = True
+        randomize_default_dof_pos_range = [-0.05, 0.05]
+        randomize_action_delay = True
+        delay_ms_range = [0, 10]
+
+class BalioVMCCfgPPO(BalioCfgPPO):
+    class runner(BalioCfgPPO.runner):
+        # logging
+        experiment_name = "balio_vmc"
+    class policy:
+        activation = "elu"  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+

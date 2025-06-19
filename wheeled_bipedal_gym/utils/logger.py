@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,6 +41,7 @@ class Logger:
         self.dt = dt
         self.num_episodes = 0
         self.plot_process = None
+        self.state_logs = []  # 用于存储状态日志数据
 
     def log_state(self, key, value):
         self.state_log[key].append(value)
@@ -48,6 +49,9 @@ class Logger:
     def log_states(self, dict):
         for key, value in dict.items():
             self.log_state(key, value)
+
+    def get_states(self):
+        return self.state_log
 
     def log_rewards(self, dict, num_episodes):
         for key, value in dict.items():

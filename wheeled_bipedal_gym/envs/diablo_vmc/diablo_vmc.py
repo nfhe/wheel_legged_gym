@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 from wheeled_bipedal_gym import WHEELED_BIPEDAL_GYM_ROOT_DIR, envs
 from time import time
@@ -303,6 +303,14 @@ class DiabloVMC(WheeledBipedal):
                                                                            0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[...,
                                                                            1]
+
+        # self.dof_pos[:, 0] = - self.dof_pos[:, 0]
+        # self.dof_pos[:, 3] = - self.dof_pos[:, 3]
+        # self.dof_pos[:, 1] = self.dof_pos[:, 1] - 22.0/57.3
+        # self.dof_pos[:, 4] = self.dof_pos[:, 4] - 22.0/57.3
+        # self.dof_vel[:, 0] = - self.dof_vel[:, 0]
+        # self.dof_vel[:, 3] = - self.dof_vel[:, 3]
+
         self.dof_acc = torch.zeros_like(self.dof_vel)
         self.base_quat = self.root_states[:, 3:7]
 
@@ -636,15 +644,17 @@ class DiabloVMC(WheeledBipedal):
         # Penalize theta is too huge
         return torch.sum(torch.square(self.theta0[:, :2]), dim=1)
 
+    # def _reward_theta_limit(self):
+    #         # Penalize theta is too huge
+    #         base_pitch = self.projected_gravity[:, 1]
+    #         base_pitch = base_pitch.unsqueeze(1)
+    #         return torch.sum(torch.square(self.theta0[:, :2] + base_pitch), dim=1)
+
     def _reward_same_l(self):
         # Penalize l is too dif
         return torch.square(self.L0[:, 0] - self.L0[:, 1])
 
     def _reward_wheel_vel(self):
-        # Penalize dof velocities
-        # left_wheel_vel = self.commands[:,0]/2 - self.commands[:,1]
-        # right_wheel_vel = self.commands[:,0]/2 + self.commands[:,1]
-        # return torch.sum(torch.square(self.dof_vel[:, 2] - left_wheel_vel) + torch.square(self.dof_vel[:, 5]) - right_wheel_vel)
         return torch.sum(
             torch.square(self.dof_vel[:, 2]) +
             torch.square(self.dof_vel[:, 5]))
@@ -652,3 +662,8 @@ class DiabloVMC(WheeledBipedal):
     def _reward_static_action_rate(self):
         # When the order remains unchanged, the punishment action rate is higher
         return torch.square(self.L0[:, 0] - self.L0[:, 1])
+
+    def _reward_same_theta(self):
+        # Penalize difference in angle between left and right legs
+        theta_diff = torch.square(self.theta0[:, 0] - self.theta0[:, 1])
+        return torch.exp(-theta_diff / 0.1)  # 可以调整分母值来控制惩罚强度

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 from wheeled_bipedal_gym import WHEELED_BIPEDAL_GYM_ROOT_DIR, WHEELED_BIPEDAL_GYM_ENVS_DIR
 
@@ -37,9 +37,18 @@ from .diablo_vmc.diablo_vmc import DiabloVMC
 from .diablo_vmc.diablo_vmc_config import DiabloVMCCfg, DiabloVMCCfgPPO
 
 import os
-
 from wheeled_bipedal_gym.utils.task_registry import task_registry
 
+from .balio.balio_config import BalioCfg, BalioCfgPPO
+
+from .balio_vmc.balio_vmc import BalioVMC
+from .balio_vmc.balio_vmc_config import BalioVMCCfg, BalioVMCCfgPPO
+
+# from .balio_vmc_advanced.balio_vmc_advanced_config import BalioVMCAdvancedCfg, BalioVMCAdvancedCfgPPO
+
 task_registry.register("diablo", WheeledBipedal, DiabloCfg(), DiabloCfgPPO())
-task_registry.register("diablo_vmc", DiabloVMC, DiabloVMCCfg(),
-                       DiabloVMCCfgPPO())
+task_registry.register("diablo_vmc", DiabloVMC, DiabloVMCCfg(), DiabloVMCCfgPPO())
+task_registry.register("balio", WheeledBipedal, BalioCfg(), BalioCfgPPO())
+task_registry.register("balio_vmc", BalioVMC, BalioVMCCfg(), BalioVMCCfgPPO())
+# task_registry.register("balio_vmc_advanced", BalioVMC, BalioVMCAdvancedCfg(), BalioVMCAdvancedCfgPPO())
+

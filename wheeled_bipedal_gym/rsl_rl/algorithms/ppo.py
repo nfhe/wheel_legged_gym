@@ -1,5 +1,4 @@
-#  Copyright 2021 ETH Zurich, NVIDIA CORPORATION
-#  SPDX-License-Identifier: BSD-3-Clause
+#  Copyright 2024 nfhe
 
 from __future__ import annotations
 

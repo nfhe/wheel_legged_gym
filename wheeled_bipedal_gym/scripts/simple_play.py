@@ -53,7 +53,7 @@ def play(args):
     # override some parameters for testing
     # env_cfg.env.episode_length_s = 20
     # env_cfg.env.fail_to_terminal_time_s = 3
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 21)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -90,10 +90,11 @@ def play(args):
             "exported", "policies")
     model_dict = find_latest_model_file(train_cfg)
     policy.load_state_dict(model_dict['model_state_dict'])
-    policy.half()
+    # policy.half()
     policy.eval()
     policy = policy.to(env.device)
-    policy.save_torch_onnx_policy(path)
+    policy.save_torch_jit_policy(path, device=env.device)
+    policy.save_torch_onnx_policy(path, device=env.device)
 
     logger = Logger(env.dt)
     robot_index = 21  # which robot is used for logging
@@ -110,11 +111,11 @@ def play(args):
     vel_err_intergral = torch.zeros(env.num_envs, device=env.device)
     vel_cmd = torch.zeros(env.num_envs, device=env.device)
 
-    for i in range(1000 * int(env.max_episode_length)):
+    for i in range(5000 * int(env.max_episode_length)):
 
-        actions = policy.act_inference(obs.half())
+        actions = policy.act_inference(obs)
 
-        env.commands[:, 0] = 2.0
+        env.commands[:, 0] = 1.0
         env.commands[:, 2] = 0.17  # + 0.07 * np.sin(i * 0.01)
         env.commands[:, 3] = 0
 
@@ -141,6 +142,7 @@ if __name__ == '__main__':
     args = get_args()
     args.task = "balio_vmc"
     # args.headless = True
+    args.num_envs = 50
     play(args)
 
 

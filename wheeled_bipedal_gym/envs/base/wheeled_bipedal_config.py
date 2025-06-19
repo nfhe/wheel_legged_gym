@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,13 +26,12 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 from wheeled_bipedal_gym.envs.base.base_config import BaseConfig
 
 
 class WheeledBipedalCfg(BaseConfig):
-
     class env:
         num_envs = 4096
         num_observations = 27
@@ -60,19 +59,7 @@ class WheeledBipedalCfg(BaseConfig):
         restitution = 0.5
         # rough terrain only:
         measure_heights = True
-        measured_points_x = [
-            -0.5,
-            -0.4,
-            -0.3,
-            -0.2,
-            -0.1,
-            0.0,
-            0.1,
-            0.2,
-            0.3,
-            0.4,
-            0.5,
-        ]  # 1mx1.6m rectangle (without center line)
+        measured_points_x = [-0.5, -0.4,-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5] # 0.6mx1.0m rectangle (without center line)
         measured_points_y = [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
@@ -84,9 +71,7 @@ class WheeledBipedalCfg(BaseConfig):
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.0, 0.5, 0.5, 0.0, 0.0, 0.0]
         # trimesh only:
-        slope_treshold = (
-            0.75  # slopes above this threshold will be corrected to vertical surfaces
-        )
+        slope_treshold = 0.75  # slopes above this threshold will be corrected to vertical surfaces
 
     class commands:
         curriculum = True
@@ -98,7 +83,7 @@ class WheeledBipedalCfg(BaseConfig):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [-5.0, 5.0]  # min max [m/s]
+            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
             ang_vel_yaw = [-3.14, 3.14]  # min max [rad/s]
             height = [0.18, 0.35]
             heading = [-3.14, 3.14]
@@ -177,7 +162,6 @@ class WheeledBipedalCfg(BaseConfig):
         delay_ms_range = [0, 10]
 
     class rewards:
-
         class scales:
             tracking_lin_vel = 1.0
             tracking_lin_vel_enhance = 1
@@ -201,21 +185,17 @@ class WheeledBipedalCfg(BaseConfig):
             theta_limit = -0.01
             same_l = 0.1e-5
             wheel_vel = -0.1
-            # block_l = 400
 
         only_positive_rewards = False  # if true negative total rewards are clipped at zero (avoids early termination problems)
         clip_single_reward = 1
         tracking_sigma = 0.25  # tracking reward = exp(-error^2/sigma)
-        soft_dof_pos_limit = (
-            0.97  # percentage of urdf limits, values above this limit are penalized
-        )
+        soft_dof_pos_limit = 0.97  # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 1.0
         soft_torque_limit = 1.0
-        base_height_target = 0.25
+        base_height_target = 0.14
         max_contact_force = 100.0  # forces above this value are penalized
 
     class normalization:
-
         class obs_scales:
             lin_vel = 10.0
             ang_vel = 0.25
@@ -279,8 +259,7 @@ class WheeledBipedalCfgPPO(BaseConfig):
         activation = "elu"  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
 
         # only for ActorCriticSequence
-        num_encoder_obs = (WheeledBipedalCfg.env.obs_history_length *
-                           WheeledBipedalCfg.env.num_observations)
+        num_encoder_obs = (WheeledBipedalCfg.env.obs_history_length * WheeledBipedalCfg.env.num_observations)
         latent_dim = 3  # at least 3 to estimate base linear velocity
         encoder_hidden_dims = [128, 64]
 

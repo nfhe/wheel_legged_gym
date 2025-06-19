@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024 nfhe. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# Copyright (c) 2024 nfhe
 
 from wheeled_bipedal_gym import WHEELED_BIPEDAL_GYM_ROOT_DIR
 import os
@@ -38,7 +38,7 @@ from wheeled_bipedal_gym.utils import get_args, export_policy_as_jit, task_regis
 
 import numpy as np
 import torch
-
+import pandas as pd
 
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
@@ -73,6 +73,7 @@ def play(args):
         env=env, name=args.task, args=args, train_cfg=train_cfg
     )
     policy = ppo_runner.get_inference_policy(device=env.device)
+    print(policy)
 
     # export policy as a jit module (used to run it from C++)
     if EXPORT_POLICY:
@@ -109,13 +110,13 @@ def play(args):
         else:
             actions = policy(obs.detach())
 
-        env.commands[:, 0] = 2.5
-        env.commands[:, 2] = 0.18  # + 0.07 * np.sin(i * 0.01)
+        env.commands[:, 0] = 2.0
+        env.commands[:, 2] = 0.17  # + 0.07 * np.sin(i * 0.01)
         env.commands[:, 3] = 0
 
         if CoM_offset_compensate:
             if i > 200 and i < 600:
-                vel_cmd[:] = 2.5 * np.clip((i - 200) * 0.05, 0, 1)
+                vel_cmd[:] = 2.0 * np.clip((i - 200) * 0.05, 0, 1)
             else:
                 vel_cmd[:] = 0
             vel_err_intergral += (
@@ -214,6 +215,21 @@ def play(args):
                     )
         elif i == stop_state_log:
             logger.plot_states()
+            state_logs = logger.get_states()
+            # np.save('state_logs.npy', state_logs)
+            # 如果 state_logs 是列表，且列表中的元素是字典，需要将其转换为 DataFrame
+            if state_logs:  # 检查 state_logs 列表是否为空
+                if isinstance(state_logs, list) and isinstance(state_logs[0], dict):
+                    df = pd.DataFrame(state_logs)
+                else:
+                    df = pd.DataFrame(state_logs)
+
+                # 保存为 CSV 文件
+                df.to_csv('state_logs.csv', index=False)
+                print("State logs saved to state_logs.csv")
+            else:
+                print("state_logs is empty, nothing to save.")
+
         if 0 < i < stop_rew_log:
             if infos["episode"]:
                 num_episodes = torch.sum(env.reset_buf).item()
@@ -222,10 +238,11 @@ def play(args):
         elif i == stop_rew_log:
             logger.print_rewards()
 
-
 if __name__ == "__main__":
     EXPORT_POLICY = True
     RECORD_FRAMES = False
-    MOVE_CAMERA = True
+    MOVE_CAMERA = False
     args = get_args()
+    args.task = "balio_vmc"
+    # args.headless = True
     play(args)
