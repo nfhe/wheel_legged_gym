@@ -117,6 +117,7 @@ class BalioVMC(WheeledBipedal):
             self.obs_buf,
             self.privileged_obs_buf,
             self.rew_buf,
+            self.cost_buf,
             self.reset_buf,
             self.extras,
             self.obs_history,
@@ -659,3 +660,15 @@ class BalioVMC(WheeledBipedal):
         # Penalize difference in angle between left and right legs
         theta_diff = torch.square(self.theta0[:, 0] - self.theta0[:, 1])
         return torch.exp(-theta_diff / 0.1)  # 可以调整分母值来控制惩罚强度
+
+    #------------ cost functions----------------
+    def _cost_dof_vel_limits(self):
+        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits*self.cfg.rewards.soft_dof_vel_limit).clip(min=0., max=1.), dim=1)
+
+    def _cost_pos_limit(self):
+        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.) # lower limit
+        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.)
+        return torch.sum(out_of_limits, dim=1)
+
+    def _cost_torque_limit(self):
+        return torch.sum((torch.abs(self.torques) - self.torque_limits*self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)

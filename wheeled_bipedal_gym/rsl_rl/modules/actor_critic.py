@@ -97,8 +97,28 @@ class ActorCritic(nn.Module):
                 critic_layers.append(activation)
         self.critic = nn.Sequential(*critic_layers)
 
+        # cost function
+        cost_layers = []
+        cost_layers = []
+        cost_layers.append(nn.Linear(mlp_input_dim_c, critic_hidden_dims[0]))
+        cost_layers.append(activation)
+        for layer_index in range(len(critic_hidden_dims)):
+            if layer_index == len(critic_hidden_dims) - 1:
+                cost_layers.append(nn.Linear(critic_hidden_dims[layer_index], 3))
+            else:
+                cost_layers.append(
+                    nn.Linear(
+                        critic_hidden_dims[layer_index],
+                        critic_hidden_dims[layer_index + 1],
+                    )
+                )
+                cost_layers.append(activation)
+        cost_layers.append(nn.Softplus())
+        self.cost = nn.Sequential(*cost_layers)
+
         print(f"Actor MLP: {self.actor}")
         print(f"Critic MLP: {self.critic}")
+        print(f"Cost MLP: {self.cost}")
 
         # Action noise
         self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
@@ -155,6 +175,10 @@ class ActorCritic(nn.Module):
 
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)
+        return value
+
+    def evaluate_cost(self, critic_observations, **kwargs ):
+        value = self.cost(critic_observations)
         return value
 
     def save_torch_onnx_policy(self, path, device):

@@ -74,7 +74,8 @@ class WheeledBipedal(BaseTask):
         self.cfg = cfg
         self.sim_params = sim_params
         self.height_samples = None
-        self.debug_viz = False
+        # self.debug_viz = True
+        self.debug_viz = self.cfg.env.debug_viz
         self.init_done = False
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, physics_engine, sim_device,
@@ -85,6 +86,7 @@ class WheeledBipedal(BaseTask):
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
         self._init_buffers()
         self._prepare_reward_function()
+        self._prepare_cost_function()
         self.init_done = True
 
     def step(self, actions):
@@ -193,6 +195,7 @@ class WheeledBipedal(BaseTask):
         # compute observations, rewards, resets, ...
         self.check_termination()
         self.compute_reward()
+        self.compute_cost()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
         self.compute_observations(
@@ -372,6 +375,14 @@ class WheeledBipedal(BaseTask):
             ) * self.reward_scales["termination"]
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
+
+    def compute_cost(self):
+        self.cost_buf[:] = 0
+        for i in range(len(self.cost_functions)):
+            name = self.cost_names[i]
+            cost = self.cost_functions[i]() * self.dt #self.cost_scales[name]
+            self.cost_buf[:,i] += cost
+            self.cost_episode_sums[name] += cost
 
     def compute_proprioception_observations(self):
         # note that observation noise need to modified accordingly !!!
@@ -1215,6 +1226,39 @@ class WheeledBipedal(BaseTask):
             for name in self.reward_scales.keys()
         }
 
+    def _prepare_cost_function(self):
+        # remove zero scales + multiply non-zero ones by dt
+        for key in list(self.cost_scales.keys()):
+            scale = self.cost_scales[key]
+            if scale==0:
+                self.cost_scales.pop(key)
+            # else:
+            #     self.cost_scales[key] *= self.dt
+
+        self.cost_functions = []
+        self.cost_names = []
+        self.cost_k_values = []
+        self.cost_d_values_tensor = []
+
+        for name,scale in self.cost_scales.items():
+            self.cost_names.append(name)
+            name = '_cost_' + name
+            print('cost name:',name)
+            print('cost k value:',scale)
+            self.cost_functions.append(getattr(self, name))
+            self.cost_k_values.append(float(scale))
+
+        for name,value in self.cost_d_values.items():
+            print('cost name:',name)
+            print('cost d value:',value)
+            self.cost_d_values_tensor.append(float(value))
+
+        self.cost_k_values = torch.FloatTensor(self.cost_k_values).view(1,-1).to(self.device)
+        self.cost_d_values_tensor = torch.FloatTensor(self.cost_d_values_tensor).view(1,1,-1).to(self.device)
+
+        self.cost_episode_sums = {name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+                                  for name in self.cost_scales.keys()}
+
     def _create_ground_plane(self):
         """Adds a ground plane to the simulation, sets friction and restitution based on the cfg."""
         plane_params = gymapi.PlaneParams()
@@ -1504,14 +1548,15 @@ class WheeledBipedal(BaseTask):
         self.dt = self.cfg.control.decimation * self.sim_params.dt
         self.obs_scales = self.cfg.normalization.obs_scales
         self.reward_scales = class_to_dict(self.cfg.rewards.scales)
+        self.cost_scales = class_to_dict(self.cfg.costs.scales)
+        self.cost_d_values = class_to_dict(self.cfg.costs.d_values)
         self.command_ranges = class_to_dict(self.cfg.commands.ranges)
         if self.cfg.terrain.mesh_type not in ["heightfield", "trimesh"]:
             self.cfg.terrain.curriculum = False
         self.max_episode_length_s = self.cfg.env.episode_length_s
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)
 
-        self.cfg.domain_rand.push_interval = np.ceil(
-            self.cfg.domain_rand.push_interval_s / self.dt)
+        self.cfg.domain_rand.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
 
     def _draw_debug_vis(self):
         """Draws visualizations for dubugging (slows down simulation a lot).

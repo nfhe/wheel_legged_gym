@@ -45,23 +45,24 @@ def train(args):
 
 if __name__ == "__main__":
     args = get_args()
-    args.task = "balio_vmc"
+    # args.task = "balio_vmc"
+    args.task = "balio_vmc_ipo"
     args.max_iterations = 6000
-    # args.num_envs = 2
+    # args.num_envs = 1
     # args.headless = True
     # args.resume = True
     # args.load_run = "Nov21_11-32-39_"
     # args.checkpoint = 2000
     train(args)
     #  tensorboard --logdir logs/balio_vmc/Nov20_16-42-20_
-    #  tensorboard --logdir /home/he/quad/wheel_legged/lsy/v2/wheeled_bipedal_gym/logs/balio_vmc/Oct21_16-20-27_
+    #  tensorboard --logdir /home/he/quad/wheel_legged/lsy/v7/wheeled_bipedal_gym/logs/balio_vmc_ipo/Jun19_16-37-45_
 
     # 继续训练
-    # /home/he/quad/wheel_legged/lsy/v6/wheeled_bipedal_gym/wheeled_bipedal_gym/scripts
-    # python train.py --resume --load_run=Jun18_23-26-16_ --checkpoint=500
+    # /home/he/quad/wheel_legged/lsy/v7/wheeled_bipedal_gym/wheeled_bipedal_gym/scripts
+    # python train.py --resume --load_run=Jun19_12-38-40_ --checkpoint=6000
 
     # logs
-    # /home/he/quad/wheel_legged/lsy/v6/wheeled_bipedal_gym
+    # /home/he/quad/wheel_legged/lsy/v7/wheeled_bipedal_gym
     # tensorboard --logdir=logs
 
 

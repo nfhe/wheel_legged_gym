@@ -127,7 +127,7 @@ def play(args):
             vel_err_intergral = torch.clip(vel_err_intergral, -0.5, 0.5)
             env.commands[:, 0] = vel_cmd + vel_err_intergral
 
-        obs, _, rews, dones, infos, obs_history = env.step(actions)
+        obs, _, rews, costs, dones, infos, obs_history = env.step(actions)
         if RECORD_FRAMES:
             if i % 2:
                 filename = os.path.join(
@@ -243,6 +243,8 @@ if __name__ == "__main__":
     RECORD_FRAMES = False
     MOVE_CAMERA = False
     args = get_args()
-    args.task = "balio_vmc"
+    args.task = "balio_vmc_ipo"
+    # args.task = "balio_vmc_p3o"
+    # args.task = "balio_vmc"
     # args.headless = True
     play(args)

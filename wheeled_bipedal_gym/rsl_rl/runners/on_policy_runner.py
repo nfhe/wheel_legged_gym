@@ -36,7 +36,7 @@ import statistics
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
-from wheeled_bipedal_gym.rsl_rl.algorithms import PPO
+from wheeled_bipedal_gym.rsl_rl.algorithms import PPO, P3O, IPO
 from wheeled_bipedal_gym.rsl_rl.modules import (
     ActorCritic,
     ActorCriticRecurrent,
@@ -64,8 +64,10 @@ class OnPolicyRunner:
         actor_critic: ActorCritic = actor_critic_class(
             self.env.num_obs, num_critic_obs, self.env.num_actions, **self.policy_cfg
         ).to(self.device)
-        alg_class = eval(self.cfg["algorithm_class_name"])  # PPO
-        self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
+        if self.cfg["algorithm_class_name"] == "P3O":
+            self.alg_cfg['k_value'] = self.env.cost_k_values
+        alg_class = eval(self.cfg["algorithm_class_name"])  # PPO,P3O,IPO
+        self.alg = alg_class(actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
 
@@ -77,6 +79,8 @@ class OnPolicyRunner:
             [num_critic_obs],
             [self.env.obs_history_length * self.env.num_obs],
             [self.env.num_actions],
+            [self.env.cfg.cost.num_costs],
+            self.env.cost_d_values_tensor
         )
 
         # Log
@@ -94,8 +98,7 @@ class OnPolicyRunner:
             self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
         if init_at_random_ep_len:
             self.env.episode_length_buf = torch.randint_like(
-                self.env.episode_length_buf, high=int(self.env.max_episode_length)
-            )
+                self.env.episode_length_buf, high=int(self.env.max_episode_length))
         obs, obs_history = self.env.get_observations()
         privileged_obs = self.env.get_privileged_observations()
         critic_obs = privileged_obs if privileged_obs is not None else obs
@@ -124,18 +127,19 @@ class OnPolicyRunner:
                 for i in range(self.num_steps_per_env):
                     actions = self.alg.act(obs, obs_history, critic_obs)
                     # print(actions)
-                    obs, privileged_obs, rewards, dones, infos, obs_history = (
+                    obs, privileged_obs, rewards, costs, dones, infos, obs_history = (
                         self.env.step(actions)
                     )
                     critic_obs = privileged_obs if privileged_obs is not None else obs
-                    obs, obs_history, critic_obs, rewards, dones = (
+                    obs, obs_history, critic_obs, costs, rewards, dones = (
                         obs.to(self.device),
                         obs_history.to(self.device),
                         critic_obs.to(self.device),
+                        costs.to(self.device),
                         rewards.to(self.device),
                         dones.to(self.device),
                     )
-                    self.alg.process_env_step(rewards, dones, infos, obs)
+                    self.alg.process_env_step(rewards, costs, dones, infos, obs)
 
                     if self.log_dir is not None:
                         # Book keeping
@@ -165,10 +169,13 @@ class OnPolicyRunner:
                 else:
                     critic_obs__ = critic_obs
                 self.alg.compute_returns(critic_obs__)
+                self.alg.compute_cost_returns(critic_obs)
 
-            mean_value_loss, mean_surrogate_loss, mean_kl, mean_extra_loss = (
-                self.alg.update()
-            )
+            #update k value for better expolration
+            k_value = self.alg.update_k_value(it)
+
+            mean_value_loss,mean_cost_value_loss,mean_viol_loss,mean_surrogate_loss,obs_batch_min,obs_batch_max = self.alg.update(self.current_learning_iteration)
+
             stop = time.time()
             learn_time = stop - start
             if self.log_dir is not None:
@@ -207,21 +214,24 @@ class OnPolicyRunner:
             / (locs["collection_time"] + locs["learn_time"])
         )
 
-        self.writer.add_scalar(
-            "Loss/value_function", locs["mean_value_loss"], locs["it"]
-        )
-        self.writer.add_scalar("Loss/encoder", locs["mean_extra_loss"], locs["it"])
+        self.writer.add_scalar('Loss/value_function', locs['mean_value_loss'], locs['it'])
+        self.writer.add_scalar('Loss/cost_value_function', locs['mean_cost_value_loss'], locs['it'])
+        self.writer.add_scalar('Loss/mean_viol_loss', locs['mean_viol_loss'], locs['it'])
         self.writer.add_scalar(
             "Loss/surrogate", locs["mean_surrogate_loss"], locs["it"]
         )
         self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, locs["it"])
         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
-        self.writer.add_scalar("Policy/mean_kl", locs["mean_kl"], locs["it"])
+        if "mean_kl" in locs:
+            self.writer.add_scalar("Policy/mean_kl", locs["mean_kl"], locs["it"])
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
         self.writer.add_scalar(
             "Perf/collection time", locs["collection_time"], locs["it"]
         )
         self.writer.add_scalar("Perf/learning_time", locs["learn_time"], locs["it"])
+        if "mean_extra_loss" in locs:
+            self.writer.add_scalar("Loss/encoder", locs["mean_extra_loss"], locs["it"])
+        
         if len(locs["rewbuffer"]) > 0:
             self.writer.add_scalar(
                 "Train/mean_reward", statistics.mean(locs["rewbuffer"]), locs["it"]
@@ -241,7 +251,9 @@ class OnPolicyRunner:
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
+                f"""{'cost value function loss:':>{pad}} {locs['mean_cost_value_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                f"""{'viol loss:':>{pad}} {locs['mean_viol_loss']:.4f}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
                 f"""{'Mean length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
@@ -297,3 +309,4 @@ class OnPolicyRunner:
         if device is not None:
             self.alg.actor_critic.to(device)
         return self.alg.actor_critic.act_inference
+

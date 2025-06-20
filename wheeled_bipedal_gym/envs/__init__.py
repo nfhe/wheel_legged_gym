@@ -43,12 +43,13 @@ from .balio.balio_config import BalioCfg, BalioCfgPPO
 
 from .balio_vmc.balio_vmc import BalioVMC
 from .balio_vmc.balio_vmc_config import BalioVMCCfg, BalioVMCCfgPPO
-
-# from .balio_vmc_advanced.balio_vmc_advanced_config import BalioVMCAdvancedCfg, BalioVMCAdvancedCfgPPO
+from .balio_vmc_p3o.balio_vmc_p3o_config import BalioVMCP3O, BalioVMCCfgP3O
+from .balio_vmc_ipo.balio_vmc_ipo_config import BalioVMCIPO, BalioVMCCfgIPO
 
 task_registry.register("diablo", WheeledBipedal, DiabloCfg(), DiabloCfgPPO())
 task_registry.register("diablo_vmc", DiabloVMC, DiabloVMCCfg(), DiabloVMCCfgPPO())
 task_registry.register("balio", WheeledBipedal, BalioCfg(), BalioCfgPPO())
 task_registry.register("balio_vmc", BalioVMC, BalioVMCCfg(), BalioVMCCfgPPO())
-# task_registry.register("balio_vmc_advanced", BalioVMC, BalioVMCAdvancedCfg(), BalioVMCAdvancedCfgPPO())
+task_registry.register("balio_vmc_p3o", BalioVMC, BalioVMCP3O(), BalioVMCCfgP3O())
+task_registry.register("balio_vmc_ipo", BalioVMC, BalioVMCIPO(), BalioVMCCfgIPO())
 

@@ -62,6 +62,7 @@ class BaseTask:
         self.num_privileged_obs = cfg.env.num_privileged_obs
         self.num_actions = cfg.env.num_actions
         self.obs_history_length = cfg.env.obs_history_length
+        self.num_costs = cfg.cost.num_costs
 
         # optimization flags for pytorch JIT
         torch._C._jit_set_profiling_mode(False)
@@ -78,6 +79,7 @@ class BaseTask:
             dtype=torch.float,
         )
         self.rew_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.cost_buf = torch.zeros(self.num_envs,self.num_costs,device=self.device,dtype=torch.float)
         self.reset_buf = torch.ones(self.num_envs, device=self.device, dtype=torch.long)
         self.fail_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.episode_length_buf = torch.zeros(
@@ -140,7 +142,7 @@ class BaseTask:
     def reset(self):
         """Reset all robots"""
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
-        obs, privileged_obs, _, _, _, _ = self.step(
+        obs, privileged_obs, _, _, _, _,_ = self.step(
             torch.zeros(
                 self.num_envs, self.num_actions, device=self.device, requires_grad=False
             )
